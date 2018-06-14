@@ -1,4 +1,3 @@
-//***************************************************************************************************
 //*  STM_LoRa.ino                                                                              *
 //*  By Ed Smallenburg.                                                                             *
 //***************************************************************************************************
@@ -76,12 +75,12 @@ u4_t DEVADDR ;                                   // LoraWAN devaddr, end node de
 // Do NOT swap the order of the bytes (Little/Big Endian).  The software takes care of that.
 //
 // 1 - Copied from TTN Console, Application, Application EUIS:
-static const u1_t APPEUI[8]  = { 0x70, 0xB3, 0xD5, 0x7E, 0xD0, 0x00, 0xED, 0x89 } ;
+static const u1_t APPEUI[8]  = { 0x70, 0xB3, 0xD4, 0xE5, 0xD0, 0x00, 0xED, 0x89 } ;
 // 2 - Copied from TTN Console, Device overview, App Key:
-static const u1_t APPKEY[16] = { 0x07, 0xCD, 0x3E, 0x37, 0xA1, 0x0D, 0x9B, 0xC7,
-                                 0x44, 0x54, 0x53, 0xCB, 0x9D, 0x41, 0x9C, 0x53 } ;
+static const u1_t APPKEY[16] = { 0x07, 0xCD, 0x3E, 0x36, 0xA2, 0x0D, 0x9B, 0xC7,
+                                 0x44, 0x54, 0x53, 0xCC, 0x9D, 0x41, 0x9C, 0x53 } ;
 // 3 - Copied from TTN Console, Device overview, Device EUI:
-static const u1_t DEVEUI[8]  = { 0x00, 0x7F, 0x18, 0x32, 0x03, 0xB8, 0x8C, 0x2B } ;
+static const u1_t DEVEUI[8]  = { 0x00, 0x7F, 0x18, 0x31, 0x04, 0xB8, 0x8C, 0x2B } ;
 // End of TTN configuration
 #define DATAVALID 0xACF2BFD2                     // Random pattern for data valid in EEPROM/RTC mem
                                                  // Change if you want OTA to renew keys.
@@ -452,7 +451,7 @@ void retrieveKeys()
              (uint8_t*)savdata.nwkKey, 16 ) ;
     memdmp ( "appsKey is:",
              (uint8_t*)savdata.artKey, 16 ) ;
-    dbgprint ( "seqnr is %d\n", savdata.seqnoUp ) ;
+    dbgprint ( "seqnr is %d", savdata.seqnoUp ) ;
     memcpy ( (uint8_t*)&DEVADDR,
              savdata.devaddr, sizeof(DEVADDR) ) ;          // LoraWAN DEVADDR, end node device address
     memcpy ( NWKSKEY,
@@ -502,6 +501,7 @@ void setup()
 {
   setGPIOModeToAllPins ( GPIO_INPUT_ANALOG ) ;          // All pins to input
   Serial1.begin ( 115200 ) ;
+  dbgprint ( "" ) ;
   dbgprint ( "Starting..." ) ;
   pinMode ( SS, OUTPUT ) ;                              // Chip select for SPI
   digitalWrite ( SS, HIGH ) ;
