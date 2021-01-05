@@ -1,12 +1,12 @@
 //***************************************************************************************************
-//*  STM_LoRa.ino                                                                                   *
+//*  STM32_LoRa.ino                                                                                 *
 //*  By Ed Smallenburg.                                                                             *
 //***************************************************************************************************
 //                                                                                                  *
 // Connect to TTN and send sensor data (for example GPS data or temperature).                       *
 // The program will run every "TX_INTERVAL" seconds.  See the definition below.                     *
 // The modules sensor.cpp and sensor.h can be modified easily to interface with the sensor(s) of    *
-// your choise.  The supplied version generates a "Hello world!" staring for payload.               *
+// your choise.  The supplied version generates a "Hello world!" string for payload.                *
 // The SOC goes into deep sleep mode after the data has been sent to TTN.                           *
 // Version for STM32F103C8T6 (power LED removed, 46 mA run, 0,8 mA sleep).                          *
 // The first time, the device will connect over OTAA.  TTN will return a fresh network session key  *
@@ -23,6 +23,8 @@
 // Software is based on ttn_otaa by Thomas Telkamp and Matthijs Kooijman.                           *
 //                                                                                                  *
 // 06-06-2018, ES: First set-up.                                                                    *
+// 25-06-2018, ES: Added HOLD pin to keep powersupply active untill sleep.                          *
+// 05-01-2021, ES: Added some debug lines for LMIC events.                                          *
 //***************************************************************************************************
 #if !(defined(__STM32F1__))
   #error Project is meant to be for the STM32F103 SOC
@@ -53,6 +55,7 @@
 #define SS    PA4                                     // SPI-1 default CS
 #define DIO2  0xFF                                    // DI02 not used
 
+#define HOLD  PA2                                     // Signal to hold Power system activated
 // Some general definitions:
 #define DEBUG_BUFFER_SIZE 150                         // Max. linelength of DEBUG lines
 #define BKP_REG_BASE      ((uint32_t *)(0x40006C04))  // Address of RTC memory
@@ -76,12 +79,12 @@ u4_t DEVADDR ;                                   // LoraWAN devaddr, end node de
 // Do NOT swap the order of the bytes (Little/Big Endian).  The software takes care of that.
 //
 // 1 - Copied from TTN Console, Application, Application EUIS:
-static const u1_t APPEUI[8]  = { 0x70, 0xB3, 0xD4, 0xE5, 0xD0, 0x00, 0xED, 0x89 } ;
+static const u1_t APPEUI[8]  = { 0x70, 0xB3, 0xD5, 0x7E, 0xD0, 0x00, 0xED, 0x89 } ;
 // 2 - Copied from TTN Console, Device overview, App Key:
-static const u1_t APPKEY[16] = { 0x07, 0xCD, 0x3E, 0x36, 0xA2, 0x0D, 0x9B, 0xC7,
-                                 0x44, 0x54, 0x53, 0xCC, 0x9D, 0x41, 0x9C, 0x53 } ;
+static const u1_t APPKEY[16] = { 0x07, 0xCD, 0x3E, 0x37, 0xA1, 0x0D, 0x9B, 0xC7,
+                                 0x44, 0x54, 0x53, 0xCB, 0x9D, 0x41, 0x9C, 0x53 } ;
 // 3 - Copied from TTN Console, Device overview, Device EUI:
-static const u1_t DEVEUI[8]  = { 0x00, 0x7F, 0x18, 0x31, 0x04, 0xB8, 0x8C, 0x2B } ;
+static const u1_t DEVEUI[8]  = { 0x00, 0x7F, 0x18, 0x32, 0x03, 0xB8, 0x8C, 0x2B } ;
 // End of TTN configuration
 #define DATAVALID 0xACF2BFD2                     // Random pattern for data valid in EEPROM/RTC mem
                                                  // Change if you want OTA to renew keys.
@@ -370,6 +373,14 @@ void onEvent (ev_t ev)
         case EV_LINK_ALIVE:
             p =  "EV_LINK_ALIVE" ;
             break;
+  #ifdef EV_JOIN_TXCOMPLETE
+        case EV_JOIN_TXCOMPLETE:                          // Defined in MCCI version only!
+            p = "EV_JOIN_TXCOMPLETE without success" ) ;  // Join transmit cycle error
+  #endif
+  #ifdef EV_TXSTART
+        case EV_TXSTART
+            p = "EV_TXSTART" ;
+  #endif
          default:
             p =  "Unknown event" ;
             break;
@@ -501,13 +512,15 @@ void setupChannels()
 void setup()
 {
   setGPIOModeToAllPins ( GPIO_INPUT_ANALOG ) ;          // All pins to input
-  Serial1.begin ( 115200 ) ;
-  dbgprint ( "" ) ;
-  dbgprint ( "Starting..." ) ;
+  pinMode ( HOLD, OUTPUT ) ;                            // Setup power system HOLD pin
+  digitalWrite ( HOLD, HIGH ) ;                         // HIGH = keep 
   pinMode ( SS, OUTPUT ) ;                              // Chip select for SPI
   digitalWrite ( SS, HIGH ) ;
   pinMode ( LED, OUTPUT ) ;                             // Enable LED
   digitalWrite ( LED, LOW ) ;                           // LED On, signal is reversed
+  Serial1.begin ( 115200 ) ;
+  dbgprint ( "" ) ;
+  dbgprint ( "Starting..." ) ;
   sensor_init() ;                                       // Initialize sensor
   ttndatalen = sensor_getdata ( ttndata ) ;             // Get sensor data
   dbgprint ( "Got sensordata with len is %d",           // Report for debug
